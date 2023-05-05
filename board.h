@@ -5,6 +5,8 @@
 
 using std::endl;
 using std::ofstream;
+using std::map;
+using std::pair;
 
 class Board {
     public:
@@ -21,10 +23,10 @@ class Board {
         void modify_position(int id, int x, int y);
 
     private:
-        int num_jobs, width, height; 
+        int num_jobs, width, height, num_page = -1; //num_page: 지금까지 넣은 page수
         ofstream& output; 
         char* board;
-        map<int, Page> pages; // page id, information of page
+        pair<int, Page> *pages; //page 넣은 순서대로 list에 저장
 };
 
 
@@ -86,8 +88,9 @@ void Board::print_job(int job_idx, char job_type, int id) {
 
 
 void Board::insert_page(int x, int y, int width, int height, int id, char content) {
-    Page newpage = Page(x, y, width, height, id, content); // 해당 page 저장
-    pages.insert(id, newpage);
+    Page newpage = Page(x, y, width, height, content); // 해당 page 저장
+    num_page++; //넣은 페이지 수 + 1
+    pages[num_page] = pair<int, Page> (id, newpage); //list에 id, page pair 순서대로 삽입
     for (int w = x; w < x + width; w++){
         for (int h = y; h < y + height; h++){
             board[width * h + w] = content; //해당 좌표에 content 입력
