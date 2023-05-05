@@ -1,11 +1,10 @@
 #include <fstream>
-#include <map>
+#include <list>
 
 #include "page.h"
 
 using std::endl;
 using std::ofstream;
-using std::map;
 using std::pair;
 
 class Board {
@@ -15,6 +14,7 @@ class Board {
 
         void print_board();
         void print_job(int job_idx, char job_type, int id);
+        void set_board(int x, int y, int width, int height, char content); // board 채우기
 
         //job functions
         void insert_page(int x, int y, int width, int height, int id, char content);
@@ -23,10 +23,10 @@ class Board {
         void modify_position(int id, int x, int y);
 
     private:
-        int num_jobs, width, height, num_page = -1; //num_page: 지금까지 넣은 page수
+        int num_jobs, width, height;
         ofstream& output; 
         char* board;
-        pair<int, Page> *pages; //page 넣은 순서대로 list에 저장
+        list <pair<int, Page>> pages; //page 넣은 순서대로 list에 저장
 };
 
 
@@ -89,13 +89,8 @@ void Board::print_job(int job_idx, char job_type, int id) {
 
 void Board::insert_page(int x, int y, int width, int height, int id, char content) {
     Page newpage = Page(x, y, width, height, content); // 해당 page 저장
-    num_page++; //넣은 페이지 수 + 1
-    pages[num_page] = pair<int, Page> (id, newpage); //list에 id, page pair 순서대로 삽입
-    for (int w = x; w < x + width; w++){
-        for (int h = y; h < y + height; h++){
-            board[width * h + w] = content; //해당 좌표에 content 입력
-        }
-    }
+    pages.push_back(pair<int, Page> (id, newpage)); //list의 뒤에 id, page pair 삽입
+    set_board(x, y, width, height, content);
     print_board();
 }
 
@@ -110,4 +105,12 @@ void Board::modify_content(int id, char content) {
 void Board::modify_position(int id, int x, int y) {
    
     
+}
+
+void Board::set_board(int x, int y, int width, int height, char content){
+    for (int w = x; w < x + width; w++){
+        for (int h = y; h < y + height; h++){
+            board[width * h + w] = content; //해당 좌표에 content 입력
+        }
+    }
 }
