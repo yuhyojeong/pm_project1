@@ -121,9 +121,23 @@ void Board::delete_page(int id) {
 }
 
 void Board::modify_content(int id, char content) {
-   
-
+   int idcop = id;
+   deleteseq(id, idcop); // 페이지 순차적 삭제
+   int x = pagemap[id].getx();
+   int y = pagemap[id].gety();
+   int pagewidth = pagemap[id].get_width();
+   int pageheight = pagemap[id].get_height();
+   Page modpage = Page(x, y, pagewidth, pageheight, id, content);
+   pagemap[id] = modpage;
+   for (int h = y; h < y + pageheight; h++){
+        for (int w = x; w < x + pagewidth; w++){
+            board[h * width + w] = content;
+        }
+    }
+    print_board();
+    insertseq(id, idcop);
 }
+
 void Board::modify_position(int id, int x, int y) {
    
     
