@@ -128,18 +128,19 @@ void Board::modify_content(int id, char content) {
    int pagewidth = pagemap[id].get_width();
    int pageheight = pagemap[id].get_height();
    Page modpage = Page(x, y, pagewidth, pageheight, id, content);
-   pagemap[id] = modpage;
+   pagemap[id] = modpage; // modify content
    for (int h = y; h < y + pageheight; h++){
         for (int w = x; w < x + pagewidth; w++){
             board[h * width + w] = content;
         }
     }
     print_board();
-    insertseq(id, idcop);
+    insertseq(id, idcop); //페이지 순차적 삽입
 }
 
 void Board::modify_position(int id, int x, int y) {
-   
+   int idcop = id;
+   deleteseq(id, idcop);
     
 }
 
