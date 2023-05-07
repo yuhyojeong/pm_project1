@@ -140,8 +140,34 @@ void Board::modify_content(int id, char content) {
 
 void Board::modify_position(int id, int x, int y) {
    int idcop = id;
-   deleteseq(id, idcop);
-    
+   deleteseq(id, idcop); // 페이지 순차적 삭제
+   int oldx = pagemap[id].getx();
+   int oldy = pagemap[id].gety();
+   int pagewidth = pagemap[id].get_width();
+   int pageheight = pagemap[id].get_height();
+   char cont = pagemap[id].get_content();
+   for (int h = y; h < y + pageheight; h++){
+        for (int w = x; w < x + pagewidth; w++){
+            int k = h * width + w;
+            for (auto itr = boardlst[k].begin(); itr != boardlst[k].end(); itr++){
+                if (pagemap[boardlst[k][itr - boardlst[k].begin()]].get_content() == board[k]){
+                    boardlst[k].insert(itr + 1, id); // boardlst의 새로운 position에 id 삽입
+                    break;
+                }
+            }
+            board[k] = cont; // board에 새로운 position 입력
+        }
+    }
+    print_board();
+    insertseq(id, idcop);
+    for (int h = oldy; h < oldy + pageheight; h++){
+        for (int w = oldx; w < oldx + pagewidth; w++){
+            int k = h * width + w;
+            boardlst[k].erase(remove(boardlst[k].begin(), boardlst[k].end(), id)); // delete old positions
+        }
+    }
+    Page modpage = Page(x, y, pagewidth, pageheight, id, cont);
+    pagemap[id] = modpage; // modify content
 }
 
 void Board::set_board(int x, int y, int pagewidth, int pageheight, char cont){
@@ -250,7 +276,13 @@ int Board::findmaxidx(int id){
     for (int h = y; h < y + pageheight; h++){
         for (int w = x; w < x + pagewidth; w++){
             int k = h * width + w;
-            int j = find(boardlst[k].begin(), boardlst[k].end(), id) - boardlst[k].begin(); // index of target in boardlst
+            int j = -1;
+            for (int itr = boardlst[k].size() - 1; itr >=0; itr--){
+                if (boardlst[k][itr] == id){
+                    j = itr; // index of target in boardlst
+                    break;
+                }
+            }
             if (j != boardlst[k].size() - 1){ // not last element
                 if (idcand.size() == 0){
                     idcand.push_back(boardlst[k][j + 1]);
