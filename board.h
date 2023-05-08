@@ -24,12 +24,13 @@ class Board {
         void modify_content(int id, char content);
         void modify_position(int id, int x, int y);
         void set_board(int x, int y, int pagewidth, int pageheight, char cont); // board set
-        void board_insert(int x, int y, int pagewidth, int pageheight, int id); //insert id to boardlst
-        void board_delete(int x, int y, int pagewidth, int pageheight, int id); //delete id from boardlst
+        void board_insert(int x, int y, int pagewidth, int pageheight, int id); //insert page to board
+        void board_delete(int x, int y, int pagewidth, int pageheight, int id); //delete one page from board
         void deleteseq(int id, int idcop); //page를 순차적으로 삭제
-        int findminidx(int id); //해당 page 위의 page 중에 가장 index가 작은 것 return
-        void insertseq(int id, int idcop); // page를 순차적으로 insert
-        int findmaxidx(int id); // 해당 page 위의 page 중 가장 index 큰 것 return
+        vector<int> findidx(int id); //해당 pafge 위의 page 중에 가장 index가 작은 것 return
+        void insertseq(int id); // page를 순차적으로 insert
+        void boardlst_delete(int x, int y, int pagewidth, int pageheight, int id); // boardlist에서 page delete
+        void boardlst_insert(int x, int y, int pagewidth, int pageheight, int id); // boardlist의 끝에 page insert
 
     private:
         int num_jobs, width, height;
@@ -37,6 +38,7 @@ class Board {
         char* board;
         map <int, Page> pagemap; //page의 id와 page를 저장
         vector<int>* boardlst; //겹치는 content의 index를 boardlst에 넣음
+        vector<int> deletedlst; // 삭제된 id들 저장
 };
 
 
@@ -106,68 +108,61 @@ void Board::print_job(int job_idx, char job_type, int id) {
 void Board::insert_page(int x, int y, int pagewidth, int pageheight, int id, char content) {
     Page newpage = Page(x, y, pagewidth, pageheight, id, content); // 해당 page 저장
     pagemap.insert({id, newpage}); // map에 id, page pair 삽입
-    board_insert(x, y, pagewidth, pageheight, id);
+    boardlst_insert(x, y, pagewidth, pageheight, id);
     set_board(x, y, pagewidth, pageheight, content);
     print_board();
 }
 
 void Board::delete_page(int id) {
     int idcop = id;
-    deleteseq(id, idcop); // 페이지 순차적 삭제
-    insertseq(id, idcop); // 페이지 순차적 삽입
-    board_delete(pagemap[id].getx(), pagemap[id].gety(), pagemap[id].get_width(), pagemap[id].get_height(), id);
-    pagemap.erase(id);
-    
+    deletedlst.clear();
+    deleteseq(id, idcop);
+    deletedlst.pop_back();
+    while(deletedlst.size() != 0){
+        insertseq(deletedlst.back());
+        deletedlst.pop_back();
+    }
+    boardlst_delete(pagemap[id].getx(), pagemap[id].gety(), pagemap[id].get_width(), pagemap[id].get_height(), id);
+    pagemap.erase(pagemap.find(id));
 }
-
 void Board::modify_content(int id, char content) {
    int idcop = id;
-   deleteseq(id, idcop); // 페이지 순차적 삭제
-   int x = pagemap[id].getx();
-   int y = pagemap[id].gety();
-   int pagewidth = pagemap[id].get_width();
-   int pageheight = pagemap[id].get_height();
-   Page modpage = Page(x, y, pagewidth, pageheight, id, content);
-   pagemap[id] = modpage; // modify content
-   for (int h = y; h < y + pageheight; h++){
-        for (int w = x; w < x + pagewidth; w++){
-            board[h * width + w] = content;
-        }
+   deletedlst.clear();
+   deleteseq(id, idcop);
+   Page modpage = Page(pagemap[id].getx(), pagemap[id].gety(), pagemap[id].get_width(), pagemap[id].get_height(), id, content);
+   pagemap[id] = modpage;
+    while(deletedlst.size() != 0){
+        insertseq(deletedlst.back());
+        deletedlst.pop_back();
     }
-    print_board();
-    insertseq(id, idcop); //페이지 순차적 삽입
 }
 
 void Board::modify_position(int id, int x, int y) {
    int idcop = id;
-   deleteseq(id, idcop); // 페이지 순차적 삭제
-   int oldx = pagemap[id].getx();
-   int oldy = pagemap[id].gety();
+   deletedlst.clear();
+   deleteseq(id, idcop);
    int pagewidth = pagemap[id].get_width();
    int pageheight = pagemap[id].get_height();
-   char cont = pagemap[id].get_content();
-   for (int h = y; h < y + pageheight; h++){
+    boardlst_delete(pagemap[id].getx(), pagemap[id].gety(), pagewidth, pageheight, id); //delete old position
+    for (int h = y; h < y + pageheight; h++){
         for (int w = x; w < x + pagewidth; w++){
             int k = h * width + w;
-            for (auto itr = boardlst[k].begin(); itr != boardlst[k].end(); itr++){
-                if (pagemap[boardlst[k][itr - boardlst[k].begin()]].get_content() == board[k]){
-                    boardlst[k].insert(itr + 1, id); // boardlst의 새로운 position에 id 삽입
-                    break;
+            for (int p = boardlst[k].size() - 1; p >= 0; p--){
+                if (pagemap[boardlst[k][p]].get_content() == board[k]){
+                    boardlst[k].insert(p + 1 + boardlst[k].begin(), id); //boadlst 적절한 곳에 insert
                 }
             }
-            board[k] = cont; // board에 새로운 position 입력
         }
     }
+    set_board(x, y, pagewidth, pageheight, pagemap[id].get_content());
     print_board();
-    insertseq(id, idcop);
-    for (int h = oldy; h < oldy + pageheight; h++){
-        for (int w = oldx; w < oldx + pagewidth; w++){
-            int k = h * width + w;
-            boardlst[k].erase(remove(boardlst[k].begin(), boardlst[k].end(), id)); // delete old positions
-        }
+    deletedlst.pop_back();
+    while(deletedlst.size() != 0){
+        insertseq(deletedlst.back());
+        deletedlst.pop_back();
     }
-    Page modpage = Page(x, y, pagewidth, pageheight, id, cont);
-    pagemap[id] = modpage; // modify content
+   Page modpage = Page(x, y, pagemap[id].get_width(), pagemap[id].get_height(), id, pagemap[id].get_content());
+   pagemap[id] = modpage;
 }
 
 void Board::set_board(int x, int y, int pagewidth, int pageheight, char cont){
@@ -181,7 +176,7 @@ void Board::set_board(int x, int y, int pagewidth, int pageheight, char cont){
 void Board::board_insert(int x, int y, int pagewidth, int pageheight, int id){
     for (int h = y; h < y + pageheight; h++){
         for (int w = x; w < x + pagewidth; w++){
-            boardlst[h * width + w].push_back(id); //boardlst의 끝에 id 삽입
+            board[h * width + w] = pagemap[id].get_content();
         }
     }
 }
@@ -190,121 +185,90 @@ void Board::board_delete(int x, int y, int pagewidth, int pageheight, int id){
     for (int h = y; h < y + pageheight; h++){
         for (int w = x; w < x + pagewidth; w++){
             int k = h * width + w;
-            boardlst[k].erase(find(boardlst[k].begin(), boardlst[k].end(), id)); //boardlst에서 id 삭제
+            int idx = find(boardlst[k].begin(), boardlst[k].end(), id) - boardlst[k].begin();
+            board[k] = pagemap[boardlst[k][idx - 1]].get_content();
         }
     }
 }
 
 void Board::deleteseq(int id, int idcop){
-    int i = findminidx(id); // 후보 중 min id 찾기
-    if (i != 32768){ // not last page
-        deleteseq(i, idcop); // 후보 먼저 delete한 후
-        deleteseq(id, idcop); // target delete
-    } else{ // last page
-        int x = pagemap[id].getx();
-        int y = pagemap[id].gety();
-        int pageheight = pagemap[id].get_height();
-        int pagewidth = pagemap[id].get_width();
-        for (int h = y; h < y + pageheight; h++) {
-            for (int w = x; w < x + pagewidth; w++) {
-                int j = h * width + w;
-                board[j] = pagemap[boardlst[j][find(boardlst[j].begin(), boardlst[j].end(), id) - boardlst[j].begin() - 1]].get_content(); // board에서 페이지 한 장 제거
-            }
-        }
+    vector<int> pr = findidx(id); // 위 페이지를 포인터로 저장
+    if (pr.size() == 0){
+        board_delete(pagemap[id].getx(), pagemap[id].gety(), pagemap[id].get_width(), pagemap[id].get_height(), id);
+        deletedlst.push_back(id);
         print_board();
-    }
-}
-
-int Board::findminidx(int id){
-    int x = pagemap[id].getx();
-    int y = pagemap[id].gety();
-    int pagewidth = pagemap[id].get_width();
-    int pageheight = pagemap[id].get_height();
-    char cont = pagemap[id].get_content();
-    int idmin = 32768;
-    for (int h = y; h < y + pageheight; h++){
-        for (int w = x; w < x + pagewidth; w++){
-            int k = h * width + w;
-            if (board[k] != cont){ //cont 바로 위의 페이지 탐색
-                int j = boardlst[k][find(boardlst[k].begin(), boardlst[k].end(), id) - boardlst[k].begin() + 1];
-                if (j < idmin){ //후보 페이지 중 가장 index 작은 것 return
-                    idmin = j;
-                }
-            }
-        }
-    }
-    return idmin; // target page가 last page이면 idmin == 32768
-}
-
-void Board::insertseq(int id, int idcop){
-    int i = findmaxidx(id); // 후보 중 max id 찾기
-    int x = pagemap[id].getx();
-    int y = pagemap[id].gety();
-    int pageheight = pagemap[id].get_height();
-    int pagewidth = pagemap[id].get_width();
-    char cont = pagemap[id].get_content();
-    if (i == -1){ // last page
-        if (id != idcop){ // if page is not target
-            for (int h = y; h < y + pageheight; h++){
-                for (int w = x; w < x + pagewidth; w++){
-                    if (board[h * width + w] == cont){
-                        return; // 이미 board에 출력됐으면 skip
-                    }
-                }
-            }
-            set_board(x, y, pagewidth, pageheight, cont);
-            print_board();
-        }
     } else{
-        if (id != idcop){ // page is not target
-            set_board(x, y, pagewidth, pageheight, cont);
-            print_board();
+        for (int j = 0; j < pr.size(); j++){
+            if (deletedlst.size() == 0){
+                deleteseq(pr[j], idcop);
+            } else if (find(deletedlst.begin(), deletedlst.end(), pr[j]) == deletedlst.end()){
+                deleteseq(pr[j], idcop);
+            } else{
+                pr.erase(j + pr.begin());
+                j--;
+            }
         }
-        insertseq(i, idcop);
-        insertseq(id, idcop);
+        board_delete(pagemap[id].getx(), pagemap[id].gety(), pagemap[id].get_width(), pagemap[id].get_height(), id);
+        print_board();
+        deletedlst.push_back(id);
     }
 }
 
-int Board::findmaxidx(int id){
+vector<int> Board::findidx(int id){
+    vector<int> prior;
     int x = pagemap[id].getx();
     int y = pagemap[id].gety();
     int pagewidth = pagemap[id].get_width();
     int pageheight = pagemap[id].get_height();
     char cont = pagemap[id].get_content();
-    int idmax = -1;
-    vector<int> idcand; // 후보 쌓는 vector
     for (int h = y; h < y + pageheight; h++){
         for (int w = x; w < x + pagewidth; w++){
             int k = h * width + w;
-            int j = -1;
-            for (int itr = boardlst[k].size() - 1; itr >=0; itr--){
-                if (boardlst[k][itr] == id){
-                    j = itr; // index of target in boardlst
-                    break;
-                }
-            }
-            if (j != boardlst[k].size() - 1){ // not last element
-                if (idcand.size() == 0){
-                    idcand.push_back(boardlst[k][j + 1]);
+            int j = find(boardlst[k].begin(), boardlst[k].end(), id) - boardlst[k].begin();
+            if (j != boardlst[k].size() - 1){
+                if (prior.size() == 0){
+                    prior.push_back(boardlst[k][j + 1]);
                 } else{
-                    if (find(idcand.begin(), idcand.end(), boardlst[k][j + 1]) == idcand.end()){
-                        idcand.push_back(boardlst[k][j + 1]); // 중복 제거
-                    }
-                }
-                for (auto elem : idcand){
-                    if (board[k] == pagemap[elem].get_content()){
-                        idcand.erase(remove(idcand.begin(), idcand.end(), elem)); // 이미 출력된 값이면 후보에서 제외외
+                    if (find(prior.begin(), prior.end(), boardlst[k][j + 1]) == prior.end()){
+                        prior.push_back(boardlst[k][j + 1]); // 중복 제거
                     }
                 }
             }
-            
-            
         }
     }
-    for (auto elem : idcand){
-        if (elem > idmax){
-            idmax = elem;
+    if (prior.size() != 0){
+        sort(prior.begin(), prior.end());
+        for (int p = 0; p < prior.size(); p++){
+            for (int q = 0; q < deletedlst.size(); q++){
+                if (prior[p] == deletedlst[q]){
+                    prior.erase(find(prior.begin(), prior.end(), prior[p]));
+                }
+            }
         }
     }
-    return idmax; // target page가 last page이면 idmax = -1
+    
+    return prior;
+}
+
+void Board::insertseq(int id){
+    board_insert(pagemap[id].getx(), pagemap[id].gety(), pagemap[id].get_width(), pagemap[id].get_height(), id);
+    print_board();
+}
+
+void Board::boardlst_delete(int x, int y, int pagewidth, int pageheight, int id){
+    for (int h = y; h < y + pageheight; h++){
+        for (int w = x; w < x + pagewidth; w++){
+            int k = h * width + w;
+            boardlst[k].erase(find(boardlst[k].begin(), boardlst[k].end(), id));
+        }
+    }
+}
+
+void Board::boardlst_insert(int x, int y, int pagewidth, int pageheight, int id){
+    for (int h = y; h < y + pageheight; h++){
+        for (int w = x; w < x + pagewidth; w++){
+            int k = h * width + w;
+            boardlst[k].push_back(id);
+        }
+    }
 }
